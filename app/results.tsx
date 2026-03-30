@@ -1,55 +1,84 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import {
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
-import { mockRecipes, type Recipe } from "./data";
-
-function matchesGoal(recipe: Recipe, goal: string): boolean {
-  if (!goal) return true;
-  return recipe.healthLabels.some((label) => label.toLowerCase().includes(goal.toLowerCase()));
-}
-
-function isSafeForAllergies(recipe: Recipe, allergies: string[]): boolean {
-  if (allergies.length === 0) return true;
-  const lowered = allergies.map((item) => item.toLowerCase());
-  return !recipe.cautions.some((caution) => lowered.includes(caution.toLowerCase()));
-}
+import { analyzeImage, findRecipes } from "./api";
+import { type RecipeRow, setSearchResults } from "./recipeStore";
 
 export default function ResultsScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ q?: string; meal?: string; goal?: string; allergies?: string }>();
+  const params = useLocalSearchParams<{
+    q?: string;
+    meal?: string;
+    goal?: string;
+    allergies?: string;
+    imageUri?: string;
+  }>();
 
-  const query = params.q?.toString() ?? "";
-  const meal = params.meal?.toString() ?? "";
-  const goal = params.goal?.toString() ?? "";
-  const allergies = (params.allergies?.toString() ?? "")
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
+  const [recipes, setRecipes] = useState<RecipeRow[]>([]);
+  const [explanation, setExplanation] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState("Searching for recipes…");
+  const [error, setError] = useState<string | null>(null);
 
-  const results = useMemo(() => {
-    return mockRecipes
-      .filter((recipe) => (meal ? recipe.mealType === meal : true))
-      .filter((recipe) => matchesGoal(recipe, goal))
-      .filter((recipe) => {
-        if (!query.trim()) return true;
-        const haystack = `${recipe.name} ${recipe.cuisineType} ${recipe.healthLabels.join(" ")}`.toLowerCase();
-        return haystack.includes(query.toLowerCase());
-      })
-      .sort((a, b) => {
-        const safeA = isSafeForAllergies(a, allergies);
-        const safeB = isSafeForAllergies(b, allergies);
-        if (safeA === safeB) return a.calories - b.calories;
-        return safeA ? -1 : 1;
-      });
-  }, [allergies, goal, meal, query]);
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        let ingredients = "";
+
+        if (params.imageUri) {
+          setStatus("Analyzing your ingredients…");
+          const analysis = await analyzeImage(params.imageUri);
+          if (cancelled) return;
+          ingredients = analysis.ingredients;
+        }
+
+        setStatus("Finding matching recipes…");
+        const allergies = (params.allergies ?? "")
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+
+        const result = await findRecipes({
+          ingredients,
+          query: params.q ?? "",
+          allergies,
+          mealType: params.meal ?? "",
+          goal: params.goal ?? "",
+        });
+        if (cancelled) return;
+
+        setRecipes(result.recipes);
+        setExplanation(result.explanation);
+        setSearchResults(result.recipes, result.explanation);
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Something went wrong");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [params.imageUri, params.q, params.meal, params.goal, params.allergies]);
+
+  const meal = params.meal ?? "";
+  const goal = params.goal ?? "";
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -63,38 +92,57 @@ export default function ResultsScreen() {
         </Text>
       </View>
 
-      {results.length === 0 ? (
+      {loading ? (
+        <View style={styles.loadingState}>
+          <ActivityIndicator size="large" color="#059669" />
+          <Text style={styles.loadingText}>{status}</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.emptyState}>
+          <Ionicons name="cloud-offline-outline" size={28} color="#ef4444" />
+          <Text style={styles.emptyTitle}>Something went wrong</Text>
+          <Text style={styles.emptySubtitle}>{error}</Text>
+        </View>
+      ) : recipes.length === 0 ? (
         <View style={styles.emptyState}>
           <Ionicons name="alert-circle-outline" size={28} color="#9ca3af" />
           <Text style={styles.emptyTitle}>No recipes found</Text>
-          <Text style={styles.emptySubtitle}>Try broadening your filters or search keywords.</Text>
+          <Text style={styles.emptySubtitle}>
+            Try broadening your filters or adding more ingredients.
+          </Text>
         </View>
       ) : (
-        results.map((recipe) => {
-          const safe = isSafeForAllergies(recipe, allergies);
-          return (
-            <Pressable
-              key={recipe.id}
-              onPress={() => router.push(`/recipe/${recipe.id}`)}
-              style={styles.card}
-            >
-              <Image source={{ uri: recipe.image }} style={styles.cardImage} contentFit="cover" />
-              <View style={styles.cardBody}>
-                <Text style={styles.cardTitle}>{recipe.name}</Text>
-                <View style={styles.metaRow}>
-                  <Text style={styles.metaText}>{recipe.calories} kcal</Text>
-                  <Text style={styles.metaText}>Serves {recipe.servings}</Text>
+        <>
+          {explanation ? (
+            <View style={styles.explanationBanner}>
+              <Ionicons name="sparkles" size={16} color="#059669" />
+              <Text style={styles.explanationText}>{explanation}</Text>
+            </View>
+          ) : null}
+
+          {recipes.map((recipe) => {
+            const name = recipe.recipe_name ?? recipe.name ?? "Untitled Recipe";
+            return (
+              <Pressable
+                key={recipe.id}
+                onPress={() => router.push(`/recipe/${recipe.id}`)}
+                style={styles.card}
+              >
+                <View style={styles.cardBody}>
+                  <Text style={styles.cardTitle}>{name}</Text>
+                  {recipe.source ? (
+                    <Text style={styles.metaText}>Source: {recipe.source}</Text>
+                  ) : null}
+                  {recipe.url ? (
+                    <Text style={styles.linkText} numberOfLines={1}>
+                      {recipe.url}
+                    </Text>
+                  ) : null}
                 </View>
-                <View style={[styles.badge, safe ? styles.badgeSafe : styles.badgeWarning]}>
-                  <Text style={[styles.badgeText, safe ? styles.badgeSafeText : styles.badgeWarnText]}>
-                    {safe ? "Safe for your allergens" : "Needs caution"}
-                  </Text>
-                </View>
-                <Text style={styles.explanation}>{recipe.explanation}</Text>
-              </View>
-            </Pressable>
-          );
-        })
+              </Pressable>
+            );
+          })}
+        </>
       )}
     </ScrollView>
   );
@@ -133,6 +181,16 @@ const styles = StyleSheet.create({
     color: "#111827",
     fontWeight: "600",
   },
+  loadingState: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 64,
+    gap: 16,
+  },
+  loadingText: {
+    color: "#6b7280",
+    fontSize: 15,
+  },
   emptyState: {
     alignItems: "center",
     justifyContent: "center",
@@ -146,6 +204,21 @@ const styles = StyleSheet.create({
   },
   emptySubtitle: {
     color: "#6b7280",
+    textAlign: "center",
+    paddingHorizontal: 20,
+  },
+  explanationBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    backgroundColor: "#ecfdf5",
+    borderRadius: 12,
+    padding: 12,
+  },
+  explanationText: {
+    color: "#065f46",
+    flex: 1,
+    lineHeight: 20,
   },
   card: {
     borderWidth: 1,
@@ -154,51 +227,21 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: "#ffffff",
   },
-  cardImage: {
-    width: "100%",
-    height: 170,
-  },
   cardBody: {
     padding: 14,
-    gap: 8,
+    gap: 6,
   },
   cardTitle: {
     color: "#111827",
     fontSize: 18,
     fontWeight: "700",
   },
-  metaRow: {
-    flexDirection: "row",
-    gap: 16,
-  },
   metaText: {
     color: "#6b7280",
     fontSize: 13,
   },
-  badge: {
-    alignSelf: "flex-start",
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  badgeSafe: {
-    backgroundColor: "#ecfdf5",
-  },
-  badgeWarning: {
-    backgroundColor: "#fffbeb",
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  badgeSafeText: {
-    color: "#047857",
-  },
-  badgeWarnText: {
-    color: "#b45309",
-  },
-  explanation: {
-    color: "#4b5563",
-    lineHeight: 18,
+  linkText: {
+    color: "#2563eb",
+    fontSize: 13,
   },
 });

@@ -1,12 +1,11 @@
 {
-  "name": "food-agent-app",
+  "name": "pantry-pal",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
-    "dev:frontend": "npm run start",
-    "dev:backend": "npm --prefix backend run dev",
-    "reset-project": "node ./scripts/reset-project.js",
+    "dev:frontend": "expo start",
+    "dev:backend": "cd backend && uvicorn server:app --reload --host 0.0.0.0 --port 3000",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",

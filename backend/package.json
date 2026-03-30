@@ -1,5 +1,5 @@
 {
-  "name": "food-agent-backend",
+  "name": "pantry-pal-backend",
   "version": "1.0.0",
   "private": true,
   "main": "src/index.js",

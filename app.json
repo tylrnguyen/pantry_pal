@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "food-agent-app",
-    "slug": "food-agent-app",
+    "name": "PantryPal",
+    "slug": "pantry-pal",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "foodagentapp",
+    "scheme": "pantrypal",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -30,8 +30,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Pantry Pal to access your photos to analyze ingredients.",
-          "cameraPermission": "Allow Pantry Pal to use your camera to capture ingredient photos.",
+          "photosPermission": "Allow PantryPal to access your photos to analyze ingredients.",
+          "cameraPermission": "Allow PantryPal to use your camera to capture ingredient photos.",
           "microphonePermission": false
         }
       ],

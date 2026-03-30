@@ -1,83 +1,83 @@
-# Food Agent App
+# PantryPal
 
-This repo now contains:
-
-- Frontend: Expo app in the project root
-- Backend: Express API in `backend/`
+AI-powered recipe finder that analyzes photos of your pantry ingredients and finds allergy-safe recipes using SnowLeopard.
 
 ## Project structure
 
 ```text
 .
-├── app/                  # Expo Router screens
-├── components/           # UI components
+├── app/                  # Expo Router screens (React Native)
+│   ├── index.tsx         # Home — search, image picker, allergy/meal/goal chips
+│   ├── results.tsx       # Recipe results from SnowLeopard
+│   ├── recipe/[id].tsx   # Recipe detail
+│   ├── api.ts            # API client (talks to the Python backend)
+│   └── recipeStore.ts    # In-memory recipe cache for navigation
 ├── backend/
-│   ├── package.json
-│   └── src/index.js      # Express server entrypoint
-└── package.json          # Frontend scripts
+│   ├── server.py         # FastAPI server (GPT-4o vision + SnowLeopard)
+│   └── requirements.txt  # Python dependencies
+├── ingredient_analyzer.py  # Standalone CLI tool
+├── package.json          # Expo / frontend config
+└── .env                  # API keys (not committed)
+```
+
+## Prerequisites
+
+- **Node.js** 18+
+- **Python** 3.10+
+- An [Expo Go](https://expo.dev/go) app on your phone
+- API keys in `.env`:
+
+```env
+OPENAI_API_KEY=sk-...
+SNOWLEOPARD_API_KEY=...
+SNOWLEOPARD_DATAFILE_ID=...
 ```
 
 ## Install dependencies
 
-1. Frontend dependencies
+### Frontend
 
 ```bash
 npm install
 ```
 
-2. Backend dependencies
+### Backend
 
 ```bash
-npm --prefix backend install
+cd backend
+pip install -r requirements.txt
 ```
 
-## Run frontend + backend (two terminals)
+## Run the app
 
-1. Terminal 1 (frontend)
+You need **two terminals** — one for the backend, one for the Expo frontend.
+
+### Terminal 1 — Backend
 
 ```bash
-npm run dev:frontend
+cd backend
+uvicorn server:app --reload --host 0.0.0.0 --port 3000
 ```
 
-2. Terminal 2 (backend)
+### Terminal 2 — Frontend (Expo Go)
 
 ```bash
-npm run dev:backend
+npx expo start
 ```
 
-Backend default URL: `http://localhost:3000`
+Scan the QR code with Expo Go on your phone. The app auto-detects your machine's IP for backend connectivity.
 
-Quick check endpoints:
+## How it works
 
-- `GET /health`
-- `GET /api/ping`
+1. **Snap a photo** of your pantry or fridge from the home screen.
+2. **Set preferences** — allergies to avoid, meal type, dietary goal.
+3. **Tap "Find Safe Recipes"** — the app sends your photo to GPT-4o to identify ingredients, then queries the SnowLeopard recipe database with those ingredients and your dietary requirements.
+4. **Browse results** — tap any recipe to see full details and source links.
 
-## Frontend-only mode
+## API endpoints (backend)
 
-If you only want UI work, run:
-
-```bash
-npm run start
-```
-
-## Image Upload In Search
-
-The search bar supports uploading an image from the photo library.
-
-### Setup
-
-```bash
-npx expo install expo-image-picker
-```
-
-This project configures the `expo-image-picker` plugin in `app.json` with permission messages.
-
-### Notes
-
-- On first use, iOS/Android will ask for photo library permission.
-- If permissions were denied before, re-enable them from device settings.
-
-### Useful docs
-
-- Expo Image Picker: https://docs.expo.dev/versions/latest/sdk/imagepicker/
-- Expo Permissions guide: https://docs.expo.dev/guides/permissions/
+| Method | Path                 | Description                          |
+|--------|----------------------|--------------------------------------|
+| GET    | `/health`            | Health check                         |
+| POST   | `/api/analyze-image` | Upload image → GPT-4o → ingredients  |
+| POST   | `/api/recipes`       | Ingredients + prefs → SnowLeopard    |

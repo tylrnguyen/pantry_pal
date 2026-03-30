@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -13,19 +13,10 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { mockRecipes, type Recipe } from "./data";
 
 const ALLERGIES = ["Dairy", "Nuts", "Gluten", "Egg", "Soy", "Shellfish", "Sesame"];
 const MEAL_TYPES = ["Breakfast", "Lunch", "Dinner", "Snack"];
 const GOALS = ["High-Protein", "Low-Calorie", "Vegan", "Keto", "Gluten-Free"];
-
-function scoreRecipe(recipe: Recipe): number {
-  let score = 0;
-  if (recipe.safety === "safe") score += 3;
-  if (recipe.safety === "swap") score += 2;
-  if (recipe.trending) score += 1;
-  return score;
-}
 
 export default function IndexScreen() {
   const router = useRouter();
@@ -35,24 +26,6 @@ export default function IndexScreen() {
   const [selectedMeal, setSelectedMeal] = useState("Dinner");
   const [selectedGoal, setSelectedGoal] = useState("High-Protein");
   const [selectedAllergies, setSelectedAllergies] = useState<string[]>(["Dairy", "Nuts"]);
-
-  const recommended = useMemo(() => {
-    return [...mockRecipes]
-      .filter((recipe) => (selectedMeal ? recipe.mealType === selectedMeal : true))
-      .filter((recipe) => {
-        if (!selectedGoal) return true;
-        return recipe.healthLabels.some((label) =>
-          label.toLowerCase().includes(selectedGoal.toLowerCase())
-        );
-      })
-      .filter((recipe) => {
-        if (!query.trim()) return true;
-        const haystack = `${recipe.name} ${recipe.cuisineType} ${recipe.healthLabels.join(" ")}`.toLowerCase();
-        return haystack.includes(query.toLowerCase());
-      })
-      .sort((a, b) => scoreRecipe(b) - scoreRecipe(a))
-      .slice(0, 8);
-  }, [query, selectedGoal, selectedMeal]);
 
   const toggleAllergy = (allergy: string) => {
     setSelectedAllergies((prev) =>
@@ -83,6 +56,19 @@ export default function IndexScreen() {
     }
   };
 
+  const handleSearch = () => {
+    router.push({
+      pathname: "/results",
+      params: {
+        q: query,
+        meal: selectedMeal,
+        goal: selectedGoal,
+        allergies: selectedAllergies.join(","),
+        ...(pickedImage ? { imageUri: pickedImage } : {}),
+      },
+    });
+  };
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.headerRow}>
@@ -91,7 +77,7 @@ export default function IndexScreen() {
             <Ionicons name="shield-checkmark" size={18} color="#ffffff" />
           </View>
           <View>
-            <Text style={styles.title}>Pantry Pal</Text>
+            <Text style={styles.title}>PantryPal</Text>
             <Text style={styles.subtitle}>AI allergy-safe recipes</Text>
           </View>
         </View>
@@ -101,7 +87,7 @@ export default function IndexScreen() {
         <Ionicons name="search" size={18} color="#6b7280" />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search meals or cuisine"
+          placeholder="Search meals or ingredients"
           value={query}
           onChangeText={setQuery}
           placeholderTextColor="#9ca3af"
@@ -182,42 +168,26 @@ export default function IndexScreen() {
         })}
       </View>
 
-      <Pressable
-        onPress={() =>
-          router.push({
-            pathname: "/results",
-            params: {
-              q: query,
-              meal: selectedMeal,
-              goal: selectedGoal,
-              allergies: selectedAllergies.join(","),
-            },
-          })
-        }
-        style={styles.cta}
-      >
+      <Pressable onPress={handleSearch} style={styles.cta}>
         <Text style={styles.ctaText}>Find Safe Recipes</Text>
         <Ionicons name="arrow-forward" size={18} color="#ffffff" />
       </Pressable>
 
-      <Text style={styles.recommendLabel}>Recommended for you</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rowList}>
-        {recommended.map((recipe) => (
-          <Pressable
-            key={recipe.id}
-            style={styles.card}
-            onPress={() => router.push(`/recipe/${recipe.id}`)}
-          >
-            <Image source={{ uri: recipe.image }} style={styles.cardImage} contentFit="cover" />
-            <View style={styles.cardBody}>
-              <Text style={styles.cardTitle} numberOfLines={2}>
-                {recipe.name}
-              </Text>
-              <Text style={styles.cardMeta}>{recipe.calories} kcal</Text>
-            </View>
-          </Pressable>
-        ))}
-      </ScrollView>
+      {pickedImage ? (
+        <View style={styles.hintBox}>
+          <Ionicons name="camera-outline" size={16} color="#059669" />
+          <Text style={styles.hintText}>
+            Your photo will be analyzed by AI to detect ingredients
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.hintBox}>
+          <Ionicons name="bulb-outline" size={16} color="#6b7280" />
+          <Text style={styles.hintText}>
+            Snap a photo of your pantry or fridge to find recipes based on what you have
+          </Text>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -355,40 +325,20 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 16,
   },
-  recommendLabel: {
-    marginTop: 8,
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  rowList: {
-    paddingVertical: 6,
-    gap: 12,
-  },
-  card: {
-    width: 160,
+  hintBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
     backgroundColor: "#ffffff",
-    borderRadius: 14,
-    overflow: "hidden",
+    borderRadius: 12,
+    padding: 14,
     borderWidth: 1,
     borderColor: "#e5e7eb",
   },
-  cardImage: {
-    width: "100%",
-    height: 96,
-  },
-  cardBody: {
-    padding: 10,
-    gap: 6,
-  },
-  cardTitle: {
-    color: "#111827",
-    fontSize: 13,
-    fontWeight: "600",
-    minHeight: 32,
-  },
-  cardMeta: {
+  hintText: {
     color: "#6b7280",
-    fontSize: 12,
+    fontSize: 13,
+    flex: 1,
+    lineHeight: 18,
   },
 });

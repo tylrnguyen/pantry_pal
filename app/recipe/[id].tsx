@@ -1,20 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import {
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
-} from "react-native";
-import { mockRecipes } from "../data";
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { getRecipeById } from "../recipeStore";
+
+const HIDDEN_KEYS = new Set(["id"]);
 
 export default function RecipeDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string }>();
-  const id = params.id?.toString();
-  const recipe = mockRecipes.find((item) => item.id === id);
+  const recipe = getRecipeById(params.id ?? "");
 
   if (!recipe) {
     return (
@@ -27,82 +21,41 @@ export default function RecipeDetailScreen() {
     );
   }
 
+  const name = recipe.recipe_name ?? recipe.name ?? "Untitled Recipe";
+  const url = recipe.url;
+
+  const detailEntries = Object.entries(recipe).filter(
+    ([key, value]) => !HIDDEN_KEYS.has(key) && value != null && String(value).trim() !== ""
+  );
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <View style={styles.heroWrap}>
-        <Image source={{ uri: recipe.image }} style={styles.heroImage} contentFit="cover" />
+      <View style={styles.topBar}>
         <Pressable onPress={() => router.back()} style={styles.backPill}>
           <Ionicons name="arrow-back" size={16} color="#111827" />
         </Pressable>
       </View>
 
-      <Text style={styles.title}>{recipe.name}</Text>
+      <Text style={styles.title}>{name}</Text>
 
-      <View style={styles.infoRow}>
-        <View style={styles.infoItem}>
-          <Ionicons name="flame" size={14} color="#f97316" />
-          <Text style={styles.infoText}>{recipe.calories} kcal</Text>
-        </View>
-        <View style={styles.infoItem}>
-          <Ionicons name="people" size={14} color="#6b7280" />
-          <Text style={styles.infoText}>Serves {recipe.servings}</Text>
-        </View>
-      </View>
+      {url ? (
+        <Pressable onPress={() => Linking.openURL(url)} style={styles.linkRow}>
+          <Ionicons name="open-outline" size={16} color="#2563eb" />
+          <Text style={styles.linkText} numberOfLines={1}>
+            View full recipe
+          </Text>
+        </Pressable>
+      ) : null}
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Tags</Text>
-        <View style={styles.tagsWrap}>
-          {[recipe.cuisineType, recipe.mealType, ...recipe.healthLabels].map((tag) => (
-            <View key={tag} style={styles.tagPill}>
-              <Text style={styles.tagText}>{tag}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Ingredients</Text>
-        {recipe.ingredientLines.map((line) => (
-          <View key={line} style={styles.ingredientRow}>
-            <View style={styles.dot} />
-            <Text style={styles.ingredientText}>{line}</Text>
+      {detailEntries.map(([key, value]) => {
+        const label = key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+        return (
+          <View key={key} style={styles.fieldCard}>
+            <Text style={styles.fieldLabel}>{label}</Text>
+            <Text style={styles.fieldValue}>{String(value)}</Text>
           </View>
-        ))}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Allergen info</Text>
-        {recipe.cautions.length === 0 ? (
-          <Text style={styles.safeText}>No allergen warnings for this recipe.</Text>
-        ) : (
-          <View style={styles.warningBox}>
-            <Ionicons name="alert-circle" size={16} color="#b91c1c" />
-            <Text style={styles.warningText}>Contains: {recipe.cautions.join(", ")}</Text>
-          </View>
-        )}
-      </View>
-
-      {recipe.substitutions && recipe.substitutions.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Substitutions</Text>
-          {recipe.substitutions.map((swap) => (
-            <View key={`${swap.from}-${swap.to}`} style={styles.swapRow}>
-              <Ionicons name="refresh" size={14} color="#92400e" />
-              <Text style={styles.swapText}>
-                {swap.from}{" -> "}{swap.to}
-              </Text>
-            </View>
-          ))}
-        </View>
-      )}
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Why this fits</Text>
-        <View style={styles.explanationBox}>
-          <Ionicons name="sparkles" size={16} color="#059669" />
-          <Text style={styles.explanationText}>{recipe.explanation}</Text>
-        </View>
-      </View>
+        );
+      })}
     </ScrollView>
   );
 }
@@ -113,7 +66,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#f5f7f7",
   },
   content: {
+    paddingTop: 12,
+    paddingHorizontal: 18,
     paddingBottom: 28,
+    gap: 12,
   },
   centered: {
     flex: 1,
@@ -137,132 +93,50 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontWeight: "700",
   },
-  heroWrap: {
-    position: "relative",
-  },
-  heroImage: {
-    width: "100%",
-    height: 250,
+  topBar: {
+    paddingTop: 48,
   },
   backPill: {
-    position: "absolute",
-    left: 14,
-    top: 58,
     width: 34,
     height: 34,
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.9)",
+    backgroundColor: "rgba(0,0,0,0.05)",
   },
   title: {
-    marginTop: 16,
-    marginHorizontal: 18,
     fontSize: 24,
     fontWeight: "700",
     color: "#111827",
   },
-  infoRow: {
-    flexDirection: "row",
-    gap: 14,
-    marginHorizontal: 18,
-    marginTop: 12,
-  },
-  infoItem: {
+  linkRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
   },
-  infoText: {
-    color: "#4b5563",
+  linkText: {
+    color: "#2563eb",
     fontWeight: "600",
+    fontSize: 15,
   },
-  section: {
-    marginTop: 18,
-    marginHorizontal: 18,
-    gap: 10,
+  fieldCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    padding: 14,
+    gap: 4,
   },
-  sectionTitle: {
+  fieldLabel: {
     textTransform: "uppercase",
     letterSpacing: 0.6,
     color: "#6b7280",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
   },
-  tagsWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  tagPill: {
-    backgroundColor: "#ecfdf5",
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  tagText: {
-    color: "#047857",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  ingredientRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-  },
-  dot: {
-    marginTop: 7,
-    width: 6,
-    height: 6,
-    borderRadius: 999,
-    backgroundColor: "#10b981",
-  },
-  ingredientText: {
-    color: "#374151",
-    lineHeight: 20,
-    flex: 1,
-  },
-  safeText: {
-    color: "#047857",
-    fontWeight: "600",
-  },
-  warningBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#fef2f2",
-    borderRadius: 12,
-    padding: 10,
-  },
-  warningText: {
-    color: "#b91c1c",
-    flex: 1,
-    lineHeight: 18,
-  },
-  swapRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#fffbeb",
-    borderRadius: 10,
-    padding: 10,
-  },
-  swapText: {
-    color: "#92400e",
-    flex: 1,
-    lineHeight: 18,
-  },
-  explanationBox: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-    backgroundColor: "#ecfdf5",
-    borderRadius: 12,
-    padding: 10,
-  },
-  explanationText: {
-    color: "#065f46",
-    flex: 1,
-    lineHeight: 20,
+  fieldValue: {
+    color: "#111827",
+    fontSize: 15,
+    lineHeight: 22,
   },
 });
