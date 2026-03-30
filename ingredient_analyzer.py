@@ -85,23 +85,34 @@ def find_recipes(ingredients: str, requirements: str) -> str:
     return response
 
 
+import click
+
+@click.command()
+@click.argument("image", type=click.Path(exists=True), default="images/pantry1.jpg")
+@click.option(
+    "--requirements",
+    default="",
+    help="Dietary or recipe requirements, e.g. 'gluten free, low carb, vegetarian'",
+)
+def main(image, requirements):
+    """Find recipes from an image of ingredients."""
+    ingredients = analyze_ingredients(image)
+    click.echo(f"Detected ingredients:\n{ingredients}")
+
+    recipes = find_recipes(ingredients, requirements=requirements or "None specified")
+
+    click.echo("\nRecipes:")
+    if not recipes.data:
+        click.echo("No results returned.")
+    else:
+        for schema in recipes.data:
+            if schema.rows:
+                for row in schema.rows:
+                    click.echo(row)
+            else:
+                click.echo(f"No matching recipes found.")
+                click.echo(f"\n{schema.querySummary.get('non_technical_explanation', '')}")
+
+
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Find recipes from an image of ingredients.")
-    parser.add_argument("image", help="Path to the image file.")
-    parser.add_argument(
-        "--requirements",
-        default="",
-        help=(
-            "Dietary or recipe requirements, e.g. "
-            "'gluten free, low carb, vegetarian, under 30 minutes'"
-        ),
-    )
-    args = parser.parse_args()
-
-    ingredients = analyze_ingredients(args.image)
-    print("Detected ingredients:\n", ingredients)
-
-    recipes = find_recipes(ingredients, requirements=args.requirements or "None specified")
-    print("\nRecipes:\n", recipes)
+    main()
