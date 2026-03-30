@@ -29,7 +29,7 @@ SNOWLEOPARD_PROMPT = (
     "{ingredients}\n\n"
     "Dietary and recipe requirements:\n"
     "{requirements}\n\n"
-    "Please return all recipes from the database that can be made using these ingredients "
+    "Please return all recipes from the database that include most of these ingredients, not neccessarily all "
     "and that satisfy the requirements above."
 )
 
@@ -66,8 +66,33 @@ def analyze_ingredients(image_path: str) -> str:
         ]
     )
 
-    response = llm.invoke([message])
-    return response.content
+    #response = llm.invoke([message])
+    #return response.content
+    return '''- Rice: quantity unknown
+            - Linguine: quantity unknown
+            - Cashews: quantity unknown
+            - Barley: quantity unknown
+            - Potatoes: quantity unknown
+            - Whole Wheat Flour: quantity unknown
+            - All-Purpose Flour: quantity unknown
+            - Oats: quantity unknown
+            - Onions: quantity unknown
+            - Pumpkin Seeds: quantity unknown
+            - Sliced Almonds: quantity unknown
+            - Maple Syrup: quantity unknown
+            - Honey: quantity unknown
+            - Kosher Salt: quantity unknown
+            - Peanut Butter: quantity unknown
+            - Mustard: quantity unknown
+            - Mayonnaise: quantity unknown
+            - Red Pepper Flakes: quantity unknown
+            - Hot Sauce: quantity unknown
+            - Canned Beans: quantity unknown
+            - Canned Tomatoes: quantity unknown
+            - Garlic: quantity unknown
+            - Olive Oil: quantity unknown
+            - Vinegar: quantity unknown
+            - Soy Sauce: quantity unknown'''
 
 
 def find_recipes(ingredients: str, requirements: str) -> str:
@@ -102,16 +127,13 @@ def main(image, requirements):
     recipes = find_recipes(ingredients, requirements=requirements or "None specified")
 
     click.echo("\nRecipes:")
-    if not recipes.data:
-        click.echo("No results returned.")
-    else:
-        for schema in recipes.data:
-            if schema.rows:
-                for row in schema.rows:
-                    click.echo(row)
-            else:
-                click.echo(f"No matching recipes found.")
-                click.echo(f"\n{schema.querySummary.get('non_technical_explanation', '')}")
+    for schema in recipes.data:
+        if schema.rows:
+            for row in schema.rows:
+                click.echo(f"{row['recipe_name']} ({row['source']}) — {row['url']}")
+        else:
+            click.echo("No matching recipes found.")
+            click.echo(f"\n{schema.querySummary.get('non_technical_explanation', '')}")
 
 
 if __name__ == "__main__":
