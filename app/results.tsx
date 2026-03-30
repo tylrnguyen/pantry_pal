@@ -5,11 +5,11 @@ import { useMemo } from "react";
 import {
     Pressable,
     ScrollView,
-    StyleSheet,
     Text,
     View,
 } from "react-native";
 import { mockRecipes, type Recipe } from "./data";
+import { styles } from "./styles/results.styles";
 
 function matchesGoal(recipe: Recipe, goal: string): boolean {
   if (!goal) return true;
@@ -99,106 +99,3 @@ export default function ResultsScreen() {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: "#f5f7f7",
-  },
-  content: {
-    paddingTop: 64,
-    paddingHorizontal: 18,
-    paddingBottom: 24,
-    gap: 12,
-  },
-  header: {
-    backgroundColor: "#ffffff",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    padding: 14,
-    gap: 8,
-  },
-  backBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    alignSelf: "flex-start",
-  },
-  backText: {
-    color: "#4b5563",
-    fontWeight: "600",
-  },
-  summaryText: {
-    color: "#111827",
-    fontWeight: "600",
-  },
-  emptyState: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 56,
-    gap: 8,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#374151",
-  },
-  emptySubtitle: {
-    color: "#6b7280",
-  },
-  card: {
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    borderRadius: 16,
-    overflow: "hidden",
-    backgroundColor: "#ffffff",
-  },
-  cardImage: {
-    width: "100%",
-    height: 170,
-  },
-  cardBody: {
-    padding: 14,
-    gap: 8,
-  },
-  cardTitle: {
-    color: "#111827",
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  metaRow: {
-    flexDirection: "row",
-    gap: 16,
-  },
-  metaText: {
-    color: "#6b7280",
-    fontSize: 13,
-  },
-  badge: {
-    alignSelf: "flex-start",
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  badgeSafe: {
-    backgroundColor: "#ecfdf5",
-  },
-  badgeWarning: {
-    backgroundColor: "#fffbeb",
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  badgeSafeText: {
-    color: "#047857",
-  },
-  badgeWarnText: {
-    color: "#b45309",
-  },
-  explanation: {
-    color: "#4b5563",
-    lineHeight: 18,
-  },
-});
