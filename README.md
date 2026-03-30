@@ -59,3 +59,25 @@ If you only want UI work, run:
 ```bash
 npm run start
 ```
+
+## Image Upload In Search
+
+The search bar supports uploading an image from the photo library.
+
+### Setup
+
+```bash
+npx expo install expo-image-picker
+```
+
+This project configures the `expo-image-picker` plugin in `app.json` with permission messages.
+
+### Notes
+
+- On first use, iOS/Android will ask for photo library permission.
+- If permissions were denied before, re-enable them from device settings.
+
+### Useful docs
+
+- Expo Image Picker: https://docs.expo.dev/versions/latest/sdk/imagepicker/
+- Expo Permissions guide: https://docs.expo.dev/guides/permissions/
