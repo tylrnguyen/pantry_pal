@@ -8,12 +8,13 @@ import {
   Alert,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
 import { mockRecipes, type Recipe } from "./data";
+import { styles } from "./styles/index.styles";
+import { COLORS } from "./styles/theme";
 
 const ALLERGIES = ["Dairy", "Nuts", "Gluten", "Egg", "Soy", "Shellfish", "Sesame"];
 const MEAL_TYPES = ["Breakfast", "Lunch", "Dinner", "Snack"];
@@ -129,7 +130,7 @@ export default function IndexScreen() {
             accessibilityRole="button"
             accessibilityLabel="Remove uploaded image"
           >
-            <Ionicons name="close-circle" size={20} color="#ef4444" />
+            <Ionicons name="close-circle" size={20} color={COLORS.previewDanger} />
           </Pressable>
         </View>
       ) : null}
@@ -221,174 +222,3 @@ export default function IndexScreen() {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: "#f5f7f7",
-  },
-  content: {
-    paddingTop: 64,
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-    gap: 12,
-  },
-  headerRow: {
-    marginBottom: 2,
-  },
-  brandRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  logoBubble: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#059669",
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  subtitle: {
-    fontSize: 12,
-    color: "#6b7280",
-    marginTop: 2,
-  },
-  searchWrap: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    minHeight: 48,
-    backgroundColor: "#ffffff",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: "#111827",
-  },
-  iconBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: "#f3f4f6",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  previewWrap: {
-    marginTop: 8,
-    borderRadius: 12,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    position: "relative",
-    backgroundColor: "#ffffff",
-  },
-  previewImage: {
-    width: "100%",
-    height: 170,
-  },
-  clearPreviewBtn: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    backgroundColor: "#ffffff",
-    borderRadius: 999,
-  },
-  sectionLabel: {
-    marginTop: 6,
-    fontSize: 12,
-    letterSpacing: 0.5,
-    color: "#6b7280",
-    textTransform: "uppercase",
-    fontWeight: "600",
-  },
-  chipWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  chip: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    backgroundColor: "#ffffff",
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  chipSelected: {
-    backgroundColor: "#059669",
-    borderColor: "#059669",
-  },
-  chipDangerSelected: {
-    backgroundColor: "#dc2626",
-    borderColor: "#dc2626",
-  },
-  chipText: {
-    color: "#374151",
-    fontWeight: "500",
-    fontSize: 13,
-  },
-  chipTextSelected: {
-    color: "#ffffff",
-  },
-  cta: {
-    marginTop: 6,
-    minHeight: 50,
-    borderRadius: 14,
-    backgroundColor: "#059669",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  ctaText: {
-    color: "#ffffff",
-    fontWeight: "700",
-    fontSize: 16,
-  },
-  recommendLabel: {
-    marginTop: 8,
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  rowList: {
-    paddingVertical: 6,
-    gap: 12,
-  },
-  card: {
-    width: 160,
-    backgroundColor: "#ffffff",
-    borderRadius: 14,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-  },
-  cardImage: {
-    width: "100%",
-    height: 96,
-  },
-  cardBody: {
-    padding: 10,
-    gap: 6,
-  },
-  cardTitle: {
-    color: "#111827",
-    fontSize: 13,
-    fontWeight: "600",
-    minHeight: 32,
-  },
-  cardMeta: {
-    color: "#6b7280",
-    fontSize: 12,
-  },
-});
