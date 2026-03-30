@@ -1,8 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -27,6 +30,8 @@ function scoreRecipe(recipe: Recipe): number {
 export default function IndexScreen() {
   const router = useRouter();
   const [query, setQuery] = useState("");
+  const [pickedImage, setPickedImage] = useState<string | null>(null);
+  const [isPickingImage, setIsPickingImage] = useState(false);
   const [selectedMeal, setSelectedMeal] = useState("Dinner");
   const [selectedGoal, setSelectedGoal] = useState("High-Protein");
   const [selectedAllergies, setSelectedAllergies] = useState<string[]>(["Dairy", "Nuts"]);
@@ -55,6 +60,29 @@ export default function IndexScreen() {
     );
   };
 
+  const pickFromLibrary = async () => {
+    setIsPickingImage(true);
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert("Permission needed", "Please allow photo library access to upload an image.");
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        quality: 0.85,
+      });
+
+      if (!result.canceled && result.assets[0]?.uri) {
+        setPickedImage(result.assets[0].uri);
+      }
+    } finally {
+      setIsPickingImage(false);
+    }
+  };
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.headerRow}>
@@ -63,7 +91,7 @@ export default function IndexScreen() {
             <Ionicons name="shield-checkmark" size={18} color="#ffffff" />
           </View>
           <View>
-            <Text style={styles.title}>SafeBite</Text>
+            <Text style={styles.title}>Pantry Pal</Text>
             <Text style={styles.subtitle}>AI allergy-safe recipes</Text>
           </View>
         </View>
@@ -78,7 +106,33 @@ export default function IndexScreen() {
           onChangeText={setQuery}
           placeholderTextColor="#9ca3af"
         />
+        <Pressable
+          onPress={pickFromLibrary}
+          style={styles.iconBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Upload ingredient image"
+        >
+          {isPickingImage ? (
+            <ActivityIndicator size="small" color="#374151" />
+          ) : (
+            <Ionicons name="image-outline" size={18} color="#374151" />
+          )}
+        </Pressable>
       </View>
+
+      {pickedImage ? (
+        <View style={styles.previewWrap}>
+          <Image source={{ uri: pickedImage }} style={styles.previewImage} contentFit="cover" />
+          <Pressable
+            onPress={() => setPickedImage(null)}
+            style={styles.clearPreviewBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Remove uploaded image"
+          >
+            <Ionicons name="close-circle" size={20} color="#ef4444" />
+          </Pressable>
+        </View>
+      ) : null}
 
       <Text style={styles.sectionLabel}>Allergies to avoid</Text>
       <View style={styles.chipWrap}>
@@ -220,6 +274,34 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: "#111827",
+  },
+  iconBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: "#f3f4f6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  previewWrap: {
+    marginTop: 8,
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    position: "relative",
+    backgroundColor: "#ffffff",
+  },
+  previewImage: {
+    width: "100%",
+    height: 170,
+  },
+  clearPreviewBtn: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "#ffffff",
+    borderRadius: 999,
   },
   sectionLabel: {
     marginTop: 6,
