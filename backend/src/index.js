@@ -38,7 +38,13 @@ app.post('/analyze-ingredients', upload.single('image'), (req, res) => {
   console.log(`[analyze-ingredients] image=${imagePath} requirements="${requirements}" allergies="${allergies}" meal="${meal}" goal="${goal}"`);
 
   const scriptPath = path.join(__dirname, 'scripts', 'ingredient_analyzer.py');
-  const pythonBin = path.join(__dirname, '../../venv/bin/python');
+  
+  const isWindows = process.platform === "win32";
+  const pythonBin = isWindows 
+    ? path.join(__dirname, '../../venv/Scripts/python.exe') 
+    : path.join(__dirname, '../../venv/bin/python');
+
+//  const pythonBin = path.join(__dirname, '../../venv/bin/python');
   const pythonProcess = spawn(pythonBin, [
     scriptPath,
     imagePath,

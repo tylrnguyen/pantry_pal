@@ -5,6 +5,7 @@ the SnowLeopard recipe database with those ingredients plus user dietary require
 
 import base64
 import os
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -68,8 +69,8 @@ def analyze_ingredients(image_path: str) -> str:
         ]
     )
 
-    #response = llm.invoke([message])
-    #return response.content
+#    response = llm.invoke([message])
+#    return response.content
     return '''- Rice: quantity unknown
             - Linguine: quantity unknown
             - Cashews: quantity unknown
@@ -116,9 +117,13 @@ async def find_recipes(ingredients: str, requirements: str) -> list:
         if os.getenv(key)
     ]
 
+    sys.stderr.write(f"DEBUG: Found Datafile IDs: {ids_to_query}\n")
+
     # Fallback
     if not ids_to_query and os.getenv("SNOWLEOPARD_DATAFILE_ID"):
         ids_to_query.append(os.getenv("SNOWLEOPARD_DATAFILE_ID"))
+
+    sys.stderr.write(f"DEBUG: Launching {len(ids_to_query)} concurrent queries...\n")
 
     # Fire off requests concurrently
     # Using to_thread because most SDK retrieve methods are blocking (sync)
@@ -187,7 +192,7 @@ def main(image, requirements, allergies, meal, goal):
     allergy_list = [a.strip() for a in allergies.split(",") if a.strip()]
 
     ingredients = analyze_ingredients(image)
-    results_list = find_recipes(ingredients, requirements=requirements or "None specified")
+    results_list = asyncio.run(find_recipes(ingredients, requirements=requirements or "None specified"))
 
     rows = []
 
