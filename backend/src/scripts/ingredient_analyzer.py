@@ -156,16 +156,19 @@ def compute_score(row: dict, allergies: list[str], meal: str, goal: str, match_c
 
 
 @click.command()
-@click.argument("image", type=click.Path(exists=True), default="images/pantry1.jpg")
+@click.argument("image", type=click.Path(exists=True), required=False, default=None)
 @click.option("--requirements", default="", help="Free-text dietary/recipe requirements.")
 @click.option("--allergies", default="", help="Comma-separated allergies e.g. 'Dairy,Nuts'.")
 @click.option("--meal", default="", help="Meal type e.g. 'Dinner'.")
 @click.option("--goal", default="", help="Dietary goal e.g. 'Gluten-Free'.")
 def main(image, requirements, allergies, meal, goal):
-    """Find recipes from an image of ingredients."""
+    """Find recipes from an image of ingredients, or just from dietary preferences."""
     allergy_list = [a.strip() for a in allergies.split(",") if a.strip()]
 
-    ingredients = analyze_ingredients(image)
+    if image:
+        ingredients = analyze_ingredients(image)
+    else:
+        ingredients = "No specific ingredients provided — suggest recipes based on dietary preferences only."
     recipes = find_recipes(ingredients, requirements=requirements or "None specified")
 
     rows = []

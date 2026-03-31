@@ -25,28 +25,23 @@ app.get('/api/ping', (_req, res) => {
 });
 
 app.post('/analyze-ingredients', upload.single('image'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No image file received. Expected field name: "image"' });
-  }
-  const imagePath = req.file.path;
+  const imagePath = req.file ? req.file.path : '';
   const requirements = req.body.requirements || '';
 
   const allergies = req.body.allergies || '';
   const meal = req.body.meal || '';
   const goal = req.body.goal || '';
 
-  console.log(`[analyze-ingredients] image=${imagePath} requirements="${requirements}" allergies="${allergies}" meal="${meal}" goal="${goal}"`);
+  console.log(`[analyze-ingredients] image=${imagePath || '(none)'} requirements="${requirements}" allergies="${allergies}" meal="${meal}" goal="${goal}"`);
 
   const scriptPath = path.join(__dirname, 'scripts', 'ingredient_analyzer.py');
   const pythonBin = path.join(__dirname, '../../venv/bin/python');
-  const pythonProcess = spawn(pythonBin, [
-    scriptPath,
-    imagePath,
-    '--requirements', requirements,
-    '--allergies', allergies,
-    '--meal', meal,
-    '--goal', goal,
-  ]);
+  const args = [scriptPath];
+  if (imagePath) {
+    args.push(imagePath);
+  }
+  args.push('--requirements', requirements, '--allergies', allergies, '--meal', meal, '--goal', goal);
+  const pythonProcess = spawn(pythonBin, args);
 
   let stdout = '';
   let stderr = '';
