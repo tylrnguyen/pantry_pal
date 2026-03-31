@@ -16,7 +16,7 @@ import { mockRecipes, type Recipe } from "./data";
 import { styles } from "./styles/index.styles";
 import { COLORS } from "./styles/theme";
 
-const BACKEND_URL = "http://10.239.181.127:3000";
+const BACKEND_URL = "http://localhost:3000";
 
 const ALLERGIES = ["Dairy", "Nuts", "Gluten", "Egg", "Soy", "Shellfish", "Sesame"];
 const MEAL_TYPES = ["Breakfast", "Lunch", "Dinner", "Snack"];
