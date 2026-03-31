@@ -42,6 +42,7 @@ type BackendRecipe = {
   dish_type: string[];
   ingredient_lines: string[];
   score: number;
+  score_reasons: string[];
 };
 
 type BackendResult = { ingredients: string; recipes: BackendRecipe[] };
@@ -69,6 +70,7 @@ function parseBackendResult(raw: string): BackendResult {
       dish_type: safeArray(r.dish_type),
       ingredient_lines: safeArray(r.ingredient_lines),
       score: r.score ?? 0,
+      score_reasons: safeArray(r.score_reasons),
     }));
     return { ingredients: parsed.ingredients ?? "", recipes };
   } catch {
