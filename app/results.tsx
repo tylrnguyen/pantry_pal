@@ -3,7 +3,6 @@ import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo } from "react";
 import {
-  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -165,7 +164,7 @@ export default function ResultsScreen() {
           const cuisineDisplay = recipe.cuisine_type.length > 0 ? recipe.cuisine_type.join(", ") : null;
 
           return (
-            <Pressable key={i} onPress={() => recipe.url ? Linking.openURL(recipe.url) : undefined} style={styles.card}>
+            <Pressable key={i} onPress={() => router.push({ pathname: "/recipe-detail", params: { recipe: JSON.stringify(recipe) } })} style={styles.card}>
               {recipe.image_url ? (
                 <Image source={{ uri: recipe.image_url }} style={styles.recipeImage} contentFit="cover" />
               ) : (

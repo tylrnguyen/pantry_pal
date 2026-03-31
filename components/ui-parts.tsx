@@ -81,21 +81,43 @@ export function InputField({
   value,
   onChange,
   placeholder,
+  rightButton,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  rightButton?: {
+    icon: React.ReactNode;
+    onClick: () => void;
+    label?: string;
+    isActive?: boolean;
+  };
 }) {
   return (
-    <div className="relative">
-      <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+    <div className="relative flex items-center">
+      <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
       <input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all placeholder:text-gray-400"
+        className={`w-full pl-11 py-3.5 rounded-2xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all placeholder:text-gray-400 ${
+          rightButton ? "pr-14" : "pr-4"
+        }`}
       />
+      {rightButton && (
+        <button
+          onClick={rightButton.onClick}
+          className={`absolute right-1.5 p-2 rounded-lg transition-all ${
+            rightButton.isActive
+              ? "bg-emerald-600 text-white"
+              : "text-gray-400 hover:bg-gray-100"
+          }`}
+          title={rightButton.label}
+        >
+          {rightButton.icon}
+        </button>
+      )}
     </div>
   );
 }

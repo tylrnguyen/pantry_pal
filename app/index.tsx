@@ -39,6 +39,7 @@ export default function IndexScreen() {
   const [selectedGoal, setSelectedGoal] = useState("High-Protein");
   const [selectedAllergies, setSelectedAllergies] = useState<string[]>(["Dairy", "Nuts"]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const analyzeIngredients = async () => {
     if (!pickedImage) {
@@ -146,6 +147,14 @@ export default function IndexScreen() {
           placeholderTextColor="#9ca3af"
         />
         <Pressable
+          onPress={() => setFiltersOpen((prev) => !prev)}
+          style={[styles.iconBtn, filtersOpen && styles.iconBtnActive]}
+          accessibilityRole="button"
+          accessibilityLabel="Toggle filters"
+        >
+          <Ionicons name="options-sharp" size={18} color={filtersOpen ? "#059669" : "#374151"} />
+        </Pressable>
+        <Pressable
           onPress={pickFromLibrary}
           style={styles.iconBtn}
           accessibilityRole="button"
@@ -173,53 +182,57 @@ export default function IndexScreen() {
         </View>
       ) : null}
 
-      <Text style={styles.sectionLabel}>Allergies to avoid</Text>
-      <View style={styles.chipWrap}>
-        {ALLERGIES.map((allergy) => {
-          const selected = selectedAllergies.includes(allergy);
-          return (
-            <Pressable
-              key={allergy}
-              onPress={() => toggleAllergy(allergy)}
-              style={[styles.chip, selected && styles.chipDangerSelected]}
-            >
-              <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{allergy}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      {filtersOpen && (
+        <>
+          <Text style={styles.sectionLabel}>Allergies to avoid</Text>
+          <View style={styles.chipWrap}>
+            {ALLERGIES.map((allergy) => {
+              const selected = selectedAllergies.includes(allergy);
+              return (
+                <Pressable
+                  key={allergy}
+                  onPress={() => toggleAllergy(allergy)}
+                  style={[styles.chip, selected && styles.chipDangerSelected]}
+                >
+                  <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{allergy}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
 
-      <Text style={styles.sectionLabel}>Meal type</Text>
-      <View style={styles.chipWrap}>
-        {MEAL_TYPES.map((meal) => {
-          const selected = selectedMeal === meal;
-          return (
-            <Pressable
-              key={meal}
-              onPress={() => setSelectedMeal(selected ? "" : meal)}
-              style={[styles.chip, selected && styles.chipSelected]}
-            >
-              <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{meal}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
+          <Text style={styles.sectionLabel}>Meal type</Text>
+          <View style={styles.chipWrap}>
+            {MEAL_TYPES.map((meal) => {
+              const selected = selectedMeal === meal;
+              return (
+                <Pressable
+                  key={meal}
+                  onPress={() => setSelectedMeal(selected ? "" : meal)}
+                  style={[styles.chip, selected && styles.chipSelected]}
+                >
+                  <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{meal}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
 
-      <Text style={styles.sectionLabel}>Dietary goal</Text>
-      <View style={styles.chipWrap}>
-        {GOALS.map((goal) => {
-          const selected = selectedGoal === goal;
-          return (
-            <Pressable
-              key={goal}
-              onPress={() => setSelectedGoal(selected ? "" : goal)}
-              style={[styles.chip, selected && styles.chipSelected]}
-            >
-              <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{goal}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
+          <Text style={styles.sectionLabel}>Dietary goal</Text>
+          <View style={styles.chipWrap}>
+            {GOALS.map((goal) => {
+              const selected = selectedGoal === goal;
+              return (
+                <Pressable
+                  key={goal}
+                  onPress={() => setSelectedGoal(selected ? "" : goal)}
+                  style={[styles.chip, selected && styles.chipSelected]}
+                >
+                  <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{goal}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </>
+      )}
 
       <Pressable
         onPress={analyzeIngredients}
