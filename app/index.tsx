@@ -16,6 +16,8 @@ import { mockRecipes, type Recipe } from "./data";
 import { styles } from "./styles/index.styles";
 import { COLORS } from "./styles/theme";
 
+const BACKEND_URL = "http://10.239.181.127:3000";
+
 const ALLERGIES = ["Dairy", "Nuts", "Gluten", "Egg", "Soy", "Shellfish", "Sesame"];
 const MEAL_TYPES = ["Breakfast", "Lunch", "Dinner", "Snack"];
 const GOALS = ["High-Protein", "Low-Calorie", "Vegan", "Keto", "Gluten-Free"];
@@ -36,6 +38,42 @@ export default function IndexScreen() {
   const [selectedMeal, setSelectedMeal] = useState("Dinner");
   const [selectedGoal, setSelectedGoal] = useState("High-Protein");
   const [selectedAllergies, setSelectedAllergies] = useState<string[]>(["Dairy", "Nuts"]);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  const analyzeIngredients = async () => {
+    if (!pickedImage) {
+      Alert.alert("No image", "Please upload a pantry image first.");
+      return;
+    }
+
+    const requirementsParts = [];
+    if (selectedAllergies.length) requirementsParts.push(`No ${selectedAllergies.join(", ")}`);
+    if (selectedMeal) requirementsParts.push(`Meal type: ${selectedMeal}`);
+    if (selectedGoal) requirementsParts.push(selectedGoal);
+    const requirements = requirementsParts.join(", ");
+
+    const formData = new FormData();
+    formData.append("image", { uri: pickedImage, type: "image/jpeg", name: "pantry.jpg" } as any);
+    formData.append("requirements", requirements);
+    formData.append("allergies", selectedAllergies.join(","));
+    formData.append("meal", selectedMeal);
+    formData.append("goal", selectedGoal);
+
+    setIsAnalyzing(true);
+    try {
+      const response = await fetch(`${BACKEND_URL}/analyze-ingredients`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Request failed");
+      router.push({ pathname: "/results", params: { result: data.result } });
+    } catch (err: any) {
+      Alert.alert("Error", err.message);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   const recommended = useMemo(() => {
     return [...mockRecipes]
@@ -184,21 +222,18 @@ export default function IndexScreen() {
       </View>
 
       <Pressable
-        onPress={() =>
-          router.push({
-            pathname: "/results",
-            params: {
-              q: query,
-              meal: selectedMeal,
-              goal: selectedGoal,
-              allergies: selectedAllergies.join(","),
-            },
-          })
-        }
-        style={styles.cta}
+        onPress={analyzeIngredients}
+        disabled={isAnalyzing}
+        style={[styles.cta, isAnalyzing && { opacity: 0.6 }]}
       >
-        <Text style={styles.ctaText}>Find Safe Recipes</Text>
-        <Ionicons name="arrow-forward" size={18} color="#ffffff" />
+        {isAnalyzing ? (
+          <ActivityIndicator size="small" color="#ffffff" />
+        ) : (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Text style={styles.ctaText}>Find Safe Recipes</Text>
+            <Ionicons name="arrow-forward" size={18} color="#ffffff" />
+          </View>
+        )}
       </Pressable>
 
       <Text style={styles.recommendLabel}>Recommended for you</Text>

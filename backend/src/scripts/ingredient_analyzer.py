@@ -29,8 +29,7 @@ SNOWLEOPARD_PROMPT = (
     "{ingredients}\n\n"
     "Dietary and recipe requirements:\n"
     "{requirements}\n\n"
-    "Please return all recipes from the database that include most of these ingredients, not neccessarily all "
-    "and that satisfy the requirements above."
+    "Return ALL columns available for each matching recipe row with most of their ingredients matching the list."
 )
 
 
@@ -110,30 +109,98 @@ def find_recipes(ingredients: str, requirements: str) -> str:
     return response
 
 
+import json
 import click
+
+
+def safe_json_list(value) -> list:
+    """Parse a JSON array string, returning [] on any failure."""
+    if not value:
+        return []
+    if isinstance(value, list):
+        return value
+    try:
+        parsed = json.loads(value)
+        return parsed if isinstance(parsed, list) else []
+    except (json.JSONDecodeError, TypeError):
+        return []
+
+
+def compute_score(row: dict, allergies: list[str], meal: str, goal: str, match_count: int) -> int:
+    """Score 0-100 based on how well the recipe matches the user's requirements."""
+    score = 0
+
+    # Safety: no caution overlaps with user allergies (+35)
+    cautions = safe_json_list(row.get("cautions"))
+    allergy_lower = [a.lower() for a in allergies]
+    if not any(c.lower() in allergy_lower for c in cautions):
+        score += 35
+
+    # Dietary goal match in health_labels or diet_labels (+30)
+    if goal:
+        all_labels = [l.lower() for l in safe_json_list(row.get("health_labels")) + safe_json_list(row.get("diet_labels"))]
+        if any(goal.lower() in l for l in all_labels):
+            score += 30
+
+    # Meal type match (+20)
+    if meal:
+        meal_types = safe_json_list(row.get("meal_type"))
+        if any(meal.lower() in m.lower() for m in meal_types):
+            score += 20
+
+    # Ingredient match count (+15, scaled: 15 points at match_count >= 5)
+    score += min(15, (match_count or 0) * 3)
+
+    return score
+
 
 @click.command()
 @click.argument("image", type=click.Path(exists=True), default="images/pantry1.jpg")
-@click.option(
-    "--requirements",
-    default="",
-    help="Dietary or recipe requirements, e.g. 'gluten free, low carb, vegetarian'",
-)
-def main(image, requirements):
+@click.option("--requirements", default="", help="Free-text dietary/recipe requirements.")
+@click.option("--allergies", default="", help="Comma-separated allergies e.g. 'Dairy,Nuts'.")
+@click.option("--meal", default="", help="Meal type e.g. 'Dinner'.")
+@click.option("--goal", default="", help="Dietary goal e.g. 'Gluten-Free'.")
+def main(image, requirements, allergies, meal, goal):
     """Find recipes from an image of ingredients."""
-    ingredients = analyze_ingredients(image)
-    click.echo(f"Detected ingredients:\n{ingredients}")
+    allergy_list = [a.strip() for a in allergies.split(",") if a.strip()]
 
+    ingredients = analyze_ingredients(image)
     recipes = find_recipes(ingredients, requirements=requirements or "None specified")
 
-    click.echo("\nRecipes:")
+    rows = []
     for schema in recipes.data:
-        if schema.rows:
-            for row in schema.rows:
-                click.echo(f"{row['recipe_name']} ({row['source']}) — {row['url']}")
-        else:
-            click.echo("No matching recipes found.")
-            click.echo(f"\n{schema.querySummary.get('non_technical_explanation', '')}")
+        for row in schema.rows:
+            # recipe_name is required — skip rows without it
+            name = row.get("recipe_name") or ""
+            if not name:
+                continue
+
+            match_count = row.get("match_count") or 0
+            rows.append({
+                "name": name,
+                "source": row.get("source") or "",
+                "url": row.get("url") or "",
+                "image_url": row.get("image_url") or "",
+                "servings": row.get("servings") or None,
+                "calories": row.get("calories") or None,
+                "match_count": match_count,
+                "diet_labels": safe_json_list(row.get("diet_labels")),
+                "health_labels": safe_json_list(row.get("health_labels")),
+                "cautions": safe_json_list(row.get("cautions")),
+                "cuisine_type": safe_json_list(row.get("cuisine_type")),
+                "meal_type": safe_json_list(row.get("meal_type")),
+                "dish_type": safe_json_list(row.get("dish_type")),
+                "ingredient_lines": safe_json_list(row.get("ingredient_lines")),
+                "score": compute_score(row, allergy_list, meal, goal, match_count),
+            })
+
+    rows.sort(key=lambda r: r["score"], reverse=True)
+
+    output = {
+        "ingredients": ingredients,
+        "recipes": rows,
+    }
+    click.echo(json.dumps(output))
 
 
 if __name__ == "__main__":

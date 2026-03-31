@@ -24,21 +24,37 @@ app.post('/analyze-ingredients', upload.single('image'), (req, res) => {
   const imagePath = req.file.path;
   const requirements = req.body.requirements || '';
 
+  const allergies = req.body.allergies || '';
+  const meal = req.body.meal || '';
+  const goal = req.body.goal || '';
+
+  console.log(`[analyze-ingredients] image=${imagePath} requirements="${requirements}" allergies="${allergies}" meal="${meal}" goal="${goal}"`);
+
   const scriptPath = path.join(__dirname, 'scripts', 'ingredient_analyzer.py');
   const pythonBin = path.join(__dirname, '../../venv/bin/python');
   const pythonProcess = spawn(pythonBin, [
     scriptPath,
     imagePath,
     '--requirements', requirements,
+    '--allergies', allergies,
+    '--meal', meal,
+    '--goal', goal,
   ]);
 
   let stdout = '';
   let stderr = '';
 
-  pythonProcess.stdout.on('data', (data) => { stdout += data.toString(); });
-  pythonProcess.stderr.on('data', (data) => { stderr += data.toString(); });
+  pythonProcess.stdout.on('data', (data) => {
+    process.stdout.write(data);
+    stdout += data.toString();
+  });
+  pythonProcess.stderr.on('data', (data) => {
+    process.stderr.write(data);
+    stderr += data.toString();
+  });
 
   pythonProcess.on('close', (code) => {
+    console.log(`[analyze-ingredients] python exited with code ${code}`);
     if (code !== 0) {
       return res.status(500).json({ error: stderr || 'Script failed' });
     }
