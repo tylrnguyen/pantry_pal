@@ -16,7 +16,7 @@ import { mockRecipes, type Recipe } from "./data";
 import { styles } from "./styles/index.styles";
 import { COLORS } from "./styles/theme";
 
-const BACKEND_URL = "http://10.239.181.127:3000";
+const BACKEND_URL = "http://localhost:3000";
 
 const ALLERGIES = ["Dairy", "Nuts", "Gluten", "Egg", "Soy", "Shellfish", "Sesame"];
 const GOALS = ["High-Protein", "Low-Calorie", "Vegan", "Keto", "Gluten-Free"];
@@ -64,18 +64,15 @@ export default function IndexScreen() {
   };
 
   const analyzeIngredients = async () => {
-    if (!pickedImage) {
-      Alert.alert("No image", "Please upload a pantry image first.");
-      return;
-    }
-
     const requirementsParts = [];
     if (selectedAllergies.length) requirementsParts.push(`No ${selectedAllergies.join(", ")}`);
     if (selectedGoal) requirementsParts.push(selectedGoal);
     const requirements = requirementsParts.join(", ");
 
     const formData = new FormData();
-    formData.append("image", { uri: pickedImage, type: "image/jpeg", name: "pantry.jpg" } as any);
+    if (pickedImage) {
+      formData.append("image", { uri: pickedImage, type: "image/jpeg", name: "pantry.jpg" } as any);
+    }
     formData.append("requirements", requirements);
     formData.append("allergies", selectedAllergies.join(","));
     formData.append("goal", selectedGoal);
