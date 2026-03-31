@@ -31,7 +31,8 @@ SNOWLEOPARD_PROMPT = (
     "{ingredients}\n\n"
     "Dietary and recipe requirements:\n"
     "{requirements}\n\n"
-    "Return ALL columns available for each matching recipe row with most of their ingredients matching the list."
+    "Return ALL columns for the top 10 recipes whose ingredients best match the list above. "
+    "Order results by match score descending and apply LIMIT 10 in the query."
 )
 
 

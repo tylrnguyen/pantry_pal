@@ -7,7 +7,11 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const upload = multer({ dest: 'uploads/' });
+const storage = multer.diskStorage({
+  destination: path.join(__dirname, '../../uploads'),
+  filename: (_req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
+});
+const upload = multer({ storage });
 
 app.use(cors());
 app.use(express.json());
@@ -21,6 +25,9 @@ app.get('/api/ping', (_req, res) => {
 });
 
 app.post('/analyze-ingredients', upload.single('image'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No image file received. Expected field name: "image"' });
+  }
   const imagePath = req.file.path;
   const requirements = req.body.requirements || '';
 
