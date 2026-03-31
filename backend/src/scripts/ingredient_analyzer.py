@@ -29,7 +29,8 @@ SNOWLEOPARD_PROMPT = (
     "{ingredients}\n\n"
     "Dietary and recipe requirements:\n"
     "{requirements}\n\n"
-    "Return ALL columns available for each matching recipe row with most of their ingredients matching the list."
+    "Return ALL columns for the top 10 recipes whose ingredients best match the list above. "
+    "Order results by match score descending and apply LIMIT 10 in the query."
 )
 
 
@@ -65,33 +66,8 @@ def analyze_ingredients(image_path: str) -> str:
         ]
     )
 
-    #response = llm.invoke([message])
-    #return response.content
-    return '''- Rice: quantity unknown
-            - Linguine: quantity unknown
-            - Cashews: quantity unknown
-            - Barley: quantity unknown
-            - Potatoes: quantity unknown
-            - Whole Wheat Flour: quantity unknown
-            - All-Purpose Flour: quantity unknown
-            - Oats: quantity unknown
-            - Onions: quantity unknown
-            - Pumpkin Seeds: quantity unknown
-            - Sliced Almonds: quantity unknown
-            - Maple Syrup: quantity unknown
-            - Honey: quantity unknown
-            - Kosher Salt: quantity unknown
-            - Peanut Butter: quantity unknown
-            - Mustard: quantity unknown
-            - Mayonnaise: quantity unknown
-            - Red Pepper Flakes: quantity unknown
-            - Hot Sauce: quantity unknown
-            - Canned Beans: quantity unknown
-            - Canned Tomatoes: quantity unknown
-            - Garlic: quantity unknown
-            - Olive Oil: quantity unknown
-            - Vinegar: quantity unknown
-            - Soy Sauce: quantity unknown'''
+    response = llm.invoke([message])
+    return response.content
 
 
 def find_recipes(ingredients: str, requirements: str) -> str:
@@ -110,6 +86,7 @@ def find_recipes(ingredients: str, requirements: str) -> str:
 
 
 import json
+import sys
 import click
 
 
@@ -126,32 +103,76 @@ def safe_json_list(value) -> list:
         return []
 
 
-def compute_score(row: dict, allergies: list[str], meal: str, goal: str, match_count: int) -> int:
-    """Score 0-100 based on how well the recipe matches the user's requirements."""
-    score = 0
+SCORING_PROMPT = """You are a recipe scoring assistant. Given a recipe's data and a user's requirements, return a JSON object with:
+- "score": integer 0-100 reflecting how well the recipe satisfies the requirements
+- "reasons": array of short strings (max 3) explaining only the gaps — why the score isn't 100. If the score is 100, return an empty array.
 
-    # Safety: no caution overlaps with user allergies (+35)
-    cautions = safe_json_list(row.get("cautions"))
-    allergy_lower = [a.lower() for a in allergies]
-    if not any(c.lower() in allergy_lower for c in cautions):
-        score += 35
+Be specific and practical. Reference actual recipe data in your reasons (e.g. ingredient names, labels).
 
-    # Dietary goal match in health_labels or diet_labels (+30)
-    if goal:
-        all_labels = [l.lower() for l in safe_json_list(row.get("health_labels")) + safe_json_list(row.get("diet_labels"))]
-        if any(goal.lower() in l for l in all_labels):
-            score += 30
+User requirements:
+- Allergies to avoid: {allergies}
+- Meal type: {meal}
+- Dietary goal: {goal}
+- Free-text requirements: {requirements}
 
-    # Meal type match (+20)
-    if meal:
-        meal_types = safe_json_list(row.get("meal_type"))
-        if any(meal.lower() in m.lower() for m in meal_types):
-            score += 20
+Recipe data:
+{recipe_json}
 
-    # Ingredient match count (+15, scaled: 15 points at match_count >= 5)
-    score += min(15, (match_count or 0) * 3)
+Respond with only valid JSON. Example: {{"score": 75, "reasons": ["Contains dairy which you want to avoid", "Not labeled as gluten-free"]}}"""
 
-    return score
+
+def score_recipes_with_llm(
+    rows: list[dict],
+    allergies: list[str],
+    meal: str,
+    goal: str,
+    requirements: str,
+) -> list[dict]:
+    """Call GPT-4o once per recipe to score and explain each result."""
+    llm = ChatOpenAI(model="gpt-4o", api_key=os.getenv("OPENAI_API_KEY"))
+
+    print(f"\n[scoring] Scoring {len(rows)} recipes with GPT-4o...", file=sys.stderr, flush=True)
+    for row in rows:
+        recipe_json = json.dumps({
+            "name": row["name"],
+            "health_labels": row["health_labels"],
+            "diet_labels": row["diet_labels"],
+            "cautions": row["cautions"],
+            "meal_type": row["meal_type"],
+            "dish_type": row["dish_type"],
+            "cuisine_type": row["cuisine_type"],
+            "ingredient_lines": row["ingredient_lines"],
+            "calories_per_serving": (
+                round(row["calories"] / row["servings"])
+                if row.get("calories") and row.get("servings")
+                else row.get("calories")
+            ),
+        })
+
+        prompt = SCORING_PROMPT.format(
+            allergies=", ".join(allergies) if allergies else "None",
+            meal=meal or "Any",
+            goal=goal or "None",
+            requirements=requirements or "None",
+            recipe_json=recipe_json,
+        )
+
+        try:
+            response = llm.invoke([HumanMessage(content=prompt)])
+            raw = response.content.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+            parsed = json.loads(raw)
+            row["score"] = int(parsed.get("score", 50))
+            row["score_reasons"] = parsed.get("reasons", [])
+        except Exception as e:
+            row["score"] = 50
+            row["score_reasons"] = ["Score unavailable"]
+            print(f"  [score] ERROR for '{row['name']}': {e}", file=sys.stderr, flush=True)
+
+        print(f"  [score] {row['name']}: {row['score']}/100", file=sys.stderr, flush=True)
+        for reason in row["score_reasons"]:
+            print(f"    - {reason}", file=sys.stderr, flush=True)
+
+    return rows
 
 
 @click.command()
@@ -191,9 +212,11 @@ def main(image, requirements, allergies, meal, goal):
                 "meal_type": safe_json_list(row.get("meal_type")),
                 "dish_type": safe_json_list(row.get("dish_type")),
                 "ingredient_lines": safe_json_list(row.get("ingredient_lines")),
-                "score": compute_score(row, allergy_list, meal, goal, match_count),
+                "score": 0,
+                "score_reasons": [],
             })
 
+    rows = score_recipes_with_llm(rows, allergy_list, meal, goal, requirements)
     rows.sort(key=lambda r: r["score"], reverse=True)
 
     output = {
