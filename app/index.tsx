@@ -42,11 +42,6 @@ export default function IndexScreen() {
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const analyzeIngredients = async () => {
-    if (!pickedImage) {
-      Alert.alert("No image", "Please upload a pantry image first.");
-      return;
-    }
-
     const requirementsParts = [];
     if (selectedAllergies.length) requirementsParts.push(`No ${selectedAllergies.join(", ")}`);
     if (selectedMeal) requirementsParts.push(`Meal type: ${selectedMeal}`);
@@ -54,7 +49,9 @@ export default function IndexScreen() {
     const requirements = requirementsParts.join(", ");
 
     const formData = new FormData();
-    formData.append("image", { uri: pickedImage, type: "image/jpeg", name: "pantry.jpg" } as any);
+    if (pickedImage) {
+      formData.append("image", { uri: pickedImage, type: "image/jpeg", name: "pantry.jpg" } as any);
+    }
     formData.append("requirements", requirements);
     formData.append("allergies", selectedAllergies.join(","));
     formData.append("meal", selectedMeal);
