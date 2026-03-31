@@ -1,12 +1,11 @@
 // @ts-nocheck
 import {
-    ChevronDown,
-    ChevronRight,
-    Clock,
-    Flame,
-    ShieldCheck,
-    SlidersHorizontal,
-    Sparkles,
+  ChevronRight,
+  Clock,
+  Flame,
+  ShieldCheck,
+  SlidersHorizontal,
+  Sparkles
 } from "lucide-react";
 import React, { useRef, useState } from "react";
 import { useNavigate } from "react-router";
@@ -174,58 +173,22 @@ export function SearchScreen() {
               )}
             </div>
 
-            {/* Search bar */}
+            {/* Search bar with filter button */}
             <InputField
               value={query}
               onChange={setQuery}
               placeholder="e.g. high protein dinner, pasta…"
+              rightButton={{
+                icon: <SlidersHorizontal size={16} />,
+                onClick: () => setFiltersOpen((v) => !v),
+                label: "Toggle filters",
+                isActive:
+                  filtersOpen ||
+                  selectedAllergies.length > 0 ||
+                  selectedMeal ||
+                  selectedGoal,
+              }}
             />
-
-            {/* Filter toggle row */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setFiltersOpen((v) => !v)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all text-sm ${
-                  filtersOpen
-                    ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
-                    : "bg-white text-gray-600 border-gray-200"
-                }`}
-              >
-                <SlidersHorizontal size={14} />
-                Filters
-                {(selectedAllergies.length > 0 || selectedMeal || selectedGoal) && (
-                  <span
-                    className={`w-5 h-5 rounded-full text-[10px] flex items-center justify-center ${
-                      filtersOpen ? "bg-white text-emerald-700" : "bg-emerald-600 text-white"
-                    }`}
-                  >
-                    {(selectedAllergies.length > 0 ? 1 : 0) +
-                      (selectedMeal ? 1 : 0) +
-                      (selectedGoal ? 1 : 0)}
-                  </span>
-                )}
-                <ChevronDown
-                  size={14}
-                  className={`transition-transform ${filtersOpen ? "rotate-180" : ""}`}
-                />
-              </button>
-
-              {/* Quick active filter chips (read-only summary) */}
-              {!filtersOpen && (
-                <div className="flex gap-1.5 overflow-x-auto scrollbar-hide flex-1">
-                  {selectedMeal && (
-                    <span className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full bg-purple-50 text-purple-700 border border-purple-100">
-                      {selectedMeal}
-                    </span>
-                  )}
-                  {selectedGoal && (
-                    <span className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
-                      {selectedGoal}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
           </div>
 
           {/* ── Expandable Filters Panel ── */}
