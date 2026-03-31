@@ -12,6 +12,8 @@ from langchain_core.messages import HumanMessage
 from langchain_openai import ChatOpenAI
 from snowleopard import SnowLeopardClient
 
+import asyncio
+
 load_dotenv()
 
 # Sent to GPT-4o with the image — returns only the ingredient list.
@@ -94,20 +96,39 @@ def analyze_ingredients(image_path: str) -> str:
             - Soy Sauce: quantity unknown'''
 
 
-def find_recipes(ingredients: str, requirements: str) -> str:
-    """Query SnowLeopard for recipes matching the detected ingredients and user requirements."""
+import asyncio
+import os
+
+async def find_recipes(ingredients: str, requirements: str) -> list:
+    """Query multiple SnowLeopard datafiles concurrently and return a list of responses."""
+    
     query = SNOWLEOPARD_PROMPT.format(
         ingredients=ingredients,
         requirements=requirements,
     )
 
     client = SnowLeopardClient(api_key=os.getenv("SNOWLEOPARD_API_KEY"))
-    response = client.retrieve(
-        datafile_id=os.getenv("SNOWLEOPARD_DATAFILE_ID"),
-        user_query=query,
-    )
-    return response
 
+    # Identify IDs from .env
+    ids_to_query = [
+        os.getenv(key) for key in ["SNOWLEOPARD_DATAFILE_ID1", "SNOWLEOPARD_DATAFILE_ID2"]
+        if os.getenv(key)
+    ]
+
+    # Fallback
+    if not ids_to_query and os.getenv("SNOWLEOPARD_DATAFILE_ID"):
+        ids_to_query.append(os.getenv("SNOWLEOPARD_DATAFILE_ID"))
+
+    # Fire off requests concurrently
+    # Using to_thread because most SDK retrieve methods are blocking (sync)
+    tasks = [
+        asyncio.to_thread(client.retrieve, datafile_id=df_id, user_query=query)
+        for df_id in ids_to_query
+    ]
+    
+    # This returns a list of result objects: [Response1, Response2, ...]
+    responses = await asyncio.gather(*tasks)
+    return responses
 
 import json
 import click
@@ -165,34 +186,38 @@ def main(image, requirements, allergies, meal, goal):
     allergy_list = [a.strip() for a in allergies.split(",") if a.strip()]
 
     ingredients = analyze_ingredients(image)
-    recipes = find_recipes(ingredients, requirements=requirements or "None specified")
+    results_list = find_recipes(ingredients, requirements=requirements or "None specified")
 
     rows = []
-    for schema in recipes.data:
-        for row in schema.rows:
-            # recipe_name is required — skip rows without it
-            name = row.get("recipe_name") or ""
-            if not name:
-                continue
 
-            match_count = row.get("match_count") or 0
-            rows.append({
-                "name": name,
-                "source": row.get("source") or "",
-                "url": row.get("url") or "",
-                "image_url": row.get("image_url") or "",
-                "servings": row.get("servings") or None,
-                "calories": row.get("calories") or None,
-                "match_count": match_count,
-                "diet_labels": safe_json_list(row.get("diet_labels")),
-                "health_labels": safe_json_list(row.get("health_labels")),
-                "cautions": safe_json_list(row.get("cautions")),
-                "cuisine_type": safe_json_list(row.get("cuisine_type")),
-                "meal_type": safe_json_list(row.get("meal_type")),
-                "dish_type": safe_json_list(row.get("dish_type")),
-                "ingredient_lines": safe_json_list(row.get("ingredient_lines")),
-                "score": compute_score(row, allergy_list, meal, goal, match_count),
-            })
+    # 2. Iterate through each response in the list
+    for recipes in results_list:
+        # 3. Iterate through schemas in this specific response
+        for schema in recipes.data:
+            for row in schema.rows:
+                # recipe_name is required — skip rows without it
+                name = row.get("recipe_name") or ""
+                if not name:
+                    continue
+
+                match_count = row.get("match_count") or 0
+                rows.append({
+                    "name": name,
+                    "source": row.get("source") or "",
+                    "url": row.get("url") or "",
+                    "image_url": row.get("image_url") or "",
+                    "servings": row.get("servings") or None,
+                    "calories": row.get("calories") or None,
+                    "match_count": match_count,
+                    "diet_labels": safe_json_list(row.get("diet_labels")),
+                    "health_labels": safe_json_list(row.get("health_labels")),
+                    "cautions": safe_json_list(row.get("cautions")),
+                    "cuisine_type": safe_json_list(row.get("cuisine_type")),
+                    "meal_type": safe_json_list(row.get("meal_type")),
+                    "dish_type": safe_json_list(row.get("dish_type")),
+                    "ingredient_lines": safe_json_list(row.get("ingredient_lines")),
+                    "score": compute_score(row, allergy_list, meal, goal, match_count),
+                })
 
     rows.sort(key=lambda r: r["score"], reverse=True)
 
