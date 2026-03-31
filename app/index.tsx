@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -19,7 +19,6 @@ import { COLORS } from "./styles/theme";
 const BACKEND_URL = "http://10.239.181.127:3000";
 
 const ALLERGIES = ["Dairy", "Nuts", "Gluten", "Egg", "Soy", "Shellfish", "Sesame"];
-const MEAL_TYPES = ["Breakfast", "Lunch", "Dinner", "Snack"];
 const GOALS = ["High-Protein", "Low-Calorie", "Vegan", "Keto", "Gluten-Free"];
 
 function scoreRecipe(recipe: Recipe): number {
@@ -35,11 +34,34 @@ export default function IndexScreen() {
   const [query, setQuery] = useState("");
   const [pickedImage, setPickedImage] = useState<string | null>(null);
   const [isPickingImage, setIsPickingImage] = useState(false);
-  const [selectedMeal, setSelectedMeal] = useState("Dinner");
   const [selectedGoal, setSelectedGoal] = useState("High-Protein");
   const [selectedAllergies, setSelectedAllergies] = useState<string[]>(["Dairy", "Nuts"]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [recipes, setRecipes] = useState<Recipe[]>(mockRecipes);
+  const [isLoadingRecipes, setIsLoadingRecipes] = useState(true);
+
+  useEffect(() => {
+    fetchRecipes();
+  }, []);
+
+  const fetchRecipes = async () => {
+    try {
+      setIsLoadingRecipes(true);
+      const response = await fetch(`${BACKEND_URL}/api/recipes`);
+      if (response.ok) {
+        const data = await response.json();
+        setRecipes(data || mockRecipes);
+      } else {
+        setRecipes(mockRecipes);
+      }
+    } catch (error) {
+      console.error('Error fetching recipes:', error);
+      setRecipes(mockRecipes);
+    } finally {
+      setIsLoadingRecipes(false);
+    }
+  };
 
   const analyzeIngredients = async () => {
     if (!pickedImage) {
@@ -49,7 +71,6 @@ export default function IndexScreen() {
 
     const requirementsParts = [];
     if (selectedAllergies.length) requirementsParts.push(`No ${selectedAllergies.join(", ")}`);
-    if (selectedMeal) requirementsParts.push(`Meal type: ${selectedMeal}`);
     if (selectedGoal) requirementsParts.push(selectedGoal);
     const requirements = requirementsParts.join(", ");
 
@@ -57,7 +78,6 @@ export default function IndexScreen() {
     formData.append("image", { uri: pickedImage, type: "image/jpeg", name: "pantry.jpg" } as any);
     formData.append("requirements", requirements);
     formData.append("allergies", selectedAllergies.join(","));
-    formData.append("meal", selectedMeal);
     formData.append("goal", selectedGoal);
 
     setIsAnalyzing(true);
@@ -78,7 +98,6 @@ export default function IndexScreen() {
 
   const recommended = useMemo(() => {
     return [...mockRecipes]
-      .filter((recipe) => (selectedMeal ? recipe.mealType === selectedMeal : true))
       .filter((recipe) => {
         if (!selectedGoal) return true;
         return recipe.healthLabels.some((label) =>
@@ -90,9 +109,56 @@ export default function IndexScreen() {
         const haystack = `${recipe.name} ${recipe.cuisineType} ${recipe.healthLabels.join(" ")}`.toLowerCase();
         return haystack.includes(query.toLowerCase());
       })
-      .sort((a, b) => scoreRecipe(b) - scoreRecipe(a))
-      .slice(0, 8);
-  }, [query, selectedGoal, selectedMeal]);
+      .sort((a, b) => scoreRecipe(b) - scoreRecipe(a));
+  }, [query, selectedGoal]);
+
+  // Create categorized shelves for recommendations
+  const categories = [
+    { label: "High Protein", key: "high-protein" },
+    { label: "Dairy Free", key: "dairy-free" },
+    { label: "Gluten Free", key: "gluten-free" },
+    { label: "Vegan", key: "vegan" },
+    { label: "Low Calorie", key: "low-calorie" },
+    { label: "Keto", key: "keto" },
+  ];
+
+  const recipesByCategory = useMemo(() => {
+    const result: { [key: string]: Recipe[] } = {};
+
+    categories.forEach(({ key, label }) => {
+      let filtered: Recipe[] = [];
+
+      if (key === "high-protein") {
+        filtered = recipes.filter((r) =>
+          r.healthLabels.some((l) => l.toLowerCase().includes("high-protein") || l.toLowerCase().includes("high protein"))
+        );
+      } else if (key === "dairy-free") {
+        filtered = recipes.filter((r) =>
+          r.healthLabels.some((l) => l.toLowerCase().includes("dairy-free") || l.toLowerCase().includes("dairy free"))
+        );
+      } else if (key === "gluten-free") {
+        filtered = recipes.filter((r) =>
+          r.healthLabels.some((l) => l.toLowerCase().includes("gluten-free") || l.toLowerCase().includes("gluten free"))
+        );
+      } else if (key === "vegan") {
+        filtered = recipes.filter((r) =>
+          r.healthLabels.some((l) => l.toLowerCase() === "vegan")
+        );
+      } else if (key === "low-calorie") {
+        filtered = recipes.filter((r) => r.calories < 400);
+      } else if (key === "keto") {
+        filtered = recipes.filter((r) =>
+          r.healthLabels.some((l) => l.toLowerCase() === "keto")
+        );
+      }
+
+      if (filtered.length > 0) {
+        result[key] = filtered.sort((a, b) => scoreRecipe(b) - scoreRecipe(a)).slice(0, 8);
+      }
+    });
+
+    return result;
+  }, [recipes]);
 
   const toggleAllergy = (allergy: string) => {
     setSelectedAllergies((prev) =>
@@ -200,22 +266,6 @@ export default function IndexScreen() {
             })}
           </View>
 
-          <Text style={styles.sectionLabel}>Meal type</Text>
-          <View style={styles.chipWrap}>
-            {MEAL_TYPES.map((meal) => {
-              const selected = selectedMeal === meal;
-              return (
-                <Pressable
-                  key={meal}
-                  onPress={() => setSelectedMeal(selected ? "" : meal)}
-                  style={[styles.chip, selected && styles.chipSelected]}
-                >
-                  <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{meal}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
           <Text style={styles.sectionLabel}>Dietary goal</Text>
           <View style={styles.chipWrap}>
             {GOALS.map((goal) => {
@@ -249,24 +299,42 @@ export default function IndexScreen() {
         )}
       </Pressable>
 
-      <Text style={styles.recommendLabel}>Recommended for you</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rowList}>
-        {recommended.map((recipe) => (
-          <Pressable
-            key={recipe.id}
-            style={styles.card}
-            onPress={() => router.push(`/recipe/${recipe.id}`)}
-          >
-            <Image source={{ uri: recipe.image }} style={styles.cardImage} contentFit="cover" />
-            <View style={styles.cardBody}>
-              <Text style={styles.cardTitle} numberOfLines={2}>
-                {recipe.name}
-              </Text>
-              <Text style={styles.cardMeta}>{recipe.calories} kcal</Text>
-            </View>
-          </Pressable>
-        ))}
-      </ScrollView>
+      <Text style={styles.recommendLabel}>Recipes for Every Goal</Text>
+      {categories.map(({ label, key }) => {
+        const categoryRecipes = recipesByCategory[key];
+        if (!categoryRecipes || categoryRecipes.length === 0) return null;
+
+        return (
+          <View key={key}>
+            <Text style={styles.shelfLabel}>{label}</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.rowList}
+            >
+              {categoryRecipes.map((recipe) => (
+                <Pressable
+                  key={recipe.id}
+                  style={styles.card}
+                  onPress={() => router.push(`/recipe/${recipe.id}`)}
+                >
+                  <Image
+                    source={{ uri: recipe.image }}
+                    style={styles.cardImage}
+                    contentFit="cover"
+                  />
+                  <View style={styles.cardBody}>
+                    <Text style={styles.cardTitle} numberOfLines={2}>
+                      {recipe.name}
+                    </Text>
+                    <Text style={styles.cardMeta}>{recipe.calories} kcal</Text>
+                  </View>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        );
+      })}
     </ScrollView>
   );
 }

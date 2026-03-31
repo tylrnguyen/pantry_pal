@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -18,6 +19,38 @@ app.get('/health', (_req, res) => {
 
 app.get('/api/ping', (_req, res) => {
   res.json({ message: 'pong' });
+});
+
+app.get('/api/recipes', async (req, res) => {
+  try {
+    const apiKey = process.env.SNOWLEOPARD_API_KEY;
+    const dataFileId = process.env.SNOWLEOPARD_DATAFILE_ID;
+
+    if (!apiKey || !dataFileId) {
+      return res.status(500).json({ error: 'Missing Snowleopard API credentials' });
+    }
+
+    console.log('Fetching recipes from Snowleopard with dataFileId:', dataFileId);
+
+    const response = await fetch(`https://api.snowleopard.ai/data/${dataFileId}`, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      console.error(`Snowleopard API error: ${response.status} ${response.statusText}`);
+      return res.status(response.status).json({ error: `Snowleopard API error: ${response.statusText}` });
+    }
+
+    const data = await response.json();
+    console.log('Snowleopard data received:', JSON.stringify(data).substring(0, 500));
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching recipes:', error);
+    res.status(500).json({ error: 'Failed to fetch recipes', details: error.message });
+  }
 });
 
 app.post('/analyze-ingredients', upload.single('image'), (req, res) => {
